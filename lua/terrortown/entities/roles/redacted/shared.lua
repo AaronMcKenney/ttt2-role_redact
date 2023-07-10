@@ -37,7 +37,8 @@ function ROLE:PreInitialize()
 	self.disabledTeamChatRecv = true
 	self.disabledTeamVoice = true
 	self.disabledTeamVoiceRecv = true
-	--Disabling the ability to write in general chat is necessary to keep social intrigue alive.
+
+	--Disabling the ability to write in general chat may be necessary to keep social intrigue alive (TODO: TEST VOICE/TEXT CHAT).
 	--BMF--self.disabledGeneralChat = true
 
 	--The Redacted starts off on TEAM_REDACTED_SETUP, for role selection calculations
@@ -142,6 +143,7 @@ if SERVER then
 		end
 		
 		local r = math.random(tot_weight)
+		r = 91 --BMF REM
 		--print("  r=" .. tostring(r)) --REDACT_DEBUG
 
 		if inn_weight > 0 and r <= inn_weight then
@@ -226,14 +228,44 @@ if SERVER then
 		end
 	end)
 	
-	--hook.Add("TTT2SpecialRoleSyncing", "TTT2SpecialRoleSyncingRedacted", function (ply, tbl)
-	--	--TODO: Use ConVar to redact the corpse's team
-	--	--  (false by default: If the Detective/Traitor wants to waste credits to revive the player, they may do so by default. Otherwise, they may kill the Redacted on sight through some errant logic).
-	--end)
+	hook.Add("TTT2SpecialRoleSyncing", "TTT2SpecialRoleSyncingRedacted", function (ply, tbl)
+		if GetRoundState() == ROUND_POST then
+			return
+		end
+		
+		for ply_i in pairs(tbl) do
+			if not ply_i:Alive() or IsInSpecDM(ply_i) then
+				continue
+			end
+			
+			if ROLE_COPYCAT and (ply:HasWeapon("weapon_ttt2_copycat_files") and ply_i:HasWeapon("weapon_ttt2_copycat_files")) then
+				--A Copycat that has stolen the role of the Redacted may still see their teammates and vice versa.
+				continue
+			end
+			
+			if ply_i:GetSubRole() == ROLE_REDACTED and ply:GetTeam() == ply_i:GetTeam() then
+				--The teammates of the Redacted can't see that they are on their team.
+				--If they could, Traitors wouldn't hesitate to kill the Redacted, removing some of the social intrigue.
+				--This effectively bypasses roles with unknownTeam set to false (i.e. essentially all non-Innocents)
+				tbl[ply_i] = {ROLE_NONE, TEAM_NONE}
+			end
+		end
+	end)
 	
-	hook.Add("TTT2ModifyRadarRole", "TTT2ModifyRadarRoleRedacted", function(ply, target)
-		--TODO: Use ConVar to redact the corpse's team
-		--  (false by default: If the Detective/Traitor wants to waste credits to revive the player, they may do so by default. Otherwise, they may kill the Redacted on sight through some errant logic).
+	hook.Add("TTT2ModifyRadarRole", "TTT2ModifyRadarRoleCopycat", function(ply, target)
+		--This function uses the same general logic as TTT2SpecialRoleSyncing, for consistency
+		if GetRoundState() == ROUND_POST then
+			return
+		end
+		
+		local ply_subrole_data = ply:GetSubRoleData()
+		local target_subrole_data = target:GetSubRoleData()
+		
+		if ROLE_COPYCAT and (ply:HasWeapon("weapon_ttt2_copycat_files") and target:HasWeapon("weapon_ttt2_copycat_files")) then
+			return
+		elseif target:GetSubRole() == ROLE_REDACTED and ply:GetTeam() == target:GetTeam() then
+			return ROLE_NONE, TEAM_NONE
+		end
 	end)
 
 	hook.Add("TTTOnCorpseCreated", "TTTOnCorpseCreatedRedacted", function(rag, ply)

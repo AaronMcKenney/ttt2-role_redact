@@ -3,8 +3,8 @@ local L = LANG.GetLanguageTableReference("en")
 --GENERAL ROLE LANGUAGE STRINGS
 L[REDACTED.name] = "Redacted"
 L["info_popup_" .. REDACTED.name] = "[REDACTED]"
-L["body_found_" .. REDACTED.abbr] = "[REDACTED]"
-L["search_role_" .. REDACTED.abbr] = "[REDACTED]"
+L["body_found_" .. REDACTED.abbr] = "They were [REDACTED]"
+L["search_role_" .. REDACTED.abbr] = "This person was a [REDACTED]"
 L["target_" .. REDACTED.name] = "[REDACTED]"
 L["ttt2_desc_" .. REDACTED.name] = "[REDACTED]"
 
