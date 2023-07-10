@@ -1,0 +1,14 @@
+{
+	"title"		:	"[TTT2] REDACTED [ROLE]",
+	"type"		:	"ServerContent",
+    "tags"		:	[ "roleplay", "fun" ],
+    "ignore"    : [
+        ".git/*",
+        ".gitignore",
+        "README.md",
+        "ttt2-role_redact.jpg",
+        "ttt2-role_redact.png",
+        "ttt2-role_redact.txt",
+        "test_notes.txt"
+    ]
+}

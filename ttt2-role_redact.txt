@@ -1,0 +1,47 @@
+[i]I... I was never good at socializing... It's just so much easier to get to know someone after the fact... you know?[/i]
+ 
+You have to use [URL=https://steamcommunity.com/sharedfiles/filedetails/?id=1357204556]TTT2[/URL] in order to use this role. Additionally using [URL=https://steamcommunity.com/sharedfiles/filedetails/?id=1362430347]ULX for TTT2[/URL] is recommended. Report bugs concerning this role [URL=https://github.com/AaronMcKenney/ttt2-role_copy]here[/URL] and submit new role ideas [URL=https://github.com/TTT-2/addon-ideas]here[/URL]. A list of all currently available roles can be found [URL=https://steamcommunity.com/sharedfiles/filedetails/?id=1737053146]here[/URL].
+ 
+Discord: [url=https://discord.gg/Npcbb4W]https://discord.gg/Npcbb4W[/url]
+Source: [url=https://github.com/AaronMcKenney/ttt2-role_copy]https://github.com/AaronMcKenney/ttt2-role_copy[/url]
+ 
+ 
+[img]https://i.imgur.com/KeP4fWN.png[/img]
+ 
+The Copycat is a 3rd party neutral killer role, who has access to The Copycat Files. The role of every corpse The Copycat investigates is transcribed in The Files. The Copycat can then use The Files to change their role to any of those that they have transcribed. However, they may only change roles every 30 seconds, and may not use the same role twice (aside from their original role). This latter restriction was added to prevent potential game breaking interactions wherein (for example) a Copycat abuses a revival role for infinite revivals (This restriction can be removed if you don't mind that).
+ 
+The Copycat additionally starts with a single credit and may accrue more credits through murder. However, they have no shop to spend them on. They'll have to switch to a Traitor, Detective, or other shopping role to make use of their hard earned cash.
+ 
+Naturally, this role works best on servers that have numerous roles installed... provided that those roles have accounted for the possibility of being on a non-default team.
+ 
+[img]https://i.imgur.com/jIBWtbM.png[/img]
+ 
+Convars are variables that are introduced to allow server owners to customize the gameplay without changing the code. There are always a handful of convars automatically created by TTT2, that define the spawn parameters of this role and are found in ULX. Additionally there might be some role specific convars, which have to be set in the server config file.
+ 
+[h1]Normal Role Convars (also found in ULX):[/h1]
+[code]# enable or disable this role
+  ttt_copycat_enabled [0/1] (default: 1)
+# the percentage of players that are spawned as this role
+  ttt_copycat_pct [0.0..1.0] (default: 0.13)
+# the limit of players that spawn as this role each round, this overwrites the percentage
+  ttt_copycat_max [0..n] (default: 1)
+# the probability each round of this role being spawned at all
+  ttt_copycat_random [0..100] (default: 30)
+# the amount of players needed for this role to spawn
+  ttt_copycat_min_players: [0..n] (default: 6)[/code]
+ 
+[h1]Rolespecific Convars:[/h1]
+[code]# Can the Copycat only switch to a given role once per game?
+  Note1: If disabled, I can't guarrantee that this won't cause role abuse (ex. constantly swapping between revival roles for infinite lives)
+  ttt2_copycat_once_per_role [0/1] (default: 1)
+# How many seconds must pass until The Copycat can change their role again?
+  ttt2_copycat_role_change_cooldown [0..n] (default: 30)
+# Is the Copycat on The Doppelganger's Team?
+  Note1: Even if this is enabled, The Copycat will be on their own team if the Doppelganger isn't installed.
+  Note2: The server (and GMod if peer-to-peer) will need to be restarted in order for a change in this ConVar to take effect
+  ttt2_copycat_on_dop_team [0/1] (default: 1)[/code]
+ 
+--
+[h1]Credits:[/h1]
+[URL=https://steamcommunity.com/profiles/76561198025772353/]BlackMagicFine[/URL]: creator of this role addon, icon, and thumbnail
+[URL=https://steamcommunity.com/id/cuckoo]cuckoo[/URL]: Released the [URL=https://steamcommunity.com/sharedfiles/filedetails/?id=1947794080]Petition[/URL] "weapon" for TTT2, whose model I stole for this role. OG model was made by [URL=https://steamcommunity.com/id/7800415511147]JλCK0L[/URL], which was translated to English by [URL=https://steamcommunity.com/id/16-Bytes]16 Bytes[/URL].
