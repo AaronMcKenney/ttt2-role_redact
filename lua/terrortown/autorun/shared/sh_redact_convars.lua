@@ -3,6 +3,7 @@ CreateConVar("ttt2_redact_weight_innocent", "65", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_weight_traitor", "20", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_weight_redacted", "5", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_weight_other", "10", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
+CreateConVar("ttt2_redact_can_commune", "0", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 
 hook.Add("TTTUlxDynamicRCVars", "TTTUlxDynamicRedactedCVars", function(tbl)
 	tbl[ROLE_REDACTED] = tbl[ROLE_REDACTED] or {}
@@ -52,6 +53,14 @@ hook.Add("TTTUlxDynamicRCVars", "TTTUlxDynamicRedactedCVars", function(tbl)
 		decimal = 0,
 		desc = "ttt2_redact_weight_other (Def: 10)"
 	})
+
+	--# Can the Redacted commune with others through text or voice chat?
+	--  ttt2_redact_can_commune [0/1] (default: 0)
+	table.insert(tbl[ROLE_REDACTED], {
+		cvar = "ttt2_redact_can_commune",
+		checkbox = true,
+		desc = "ttt2_redact_can_commune (Def: 0)"
+	})
 end)
 
 hook.Add("TTT2SyncGlobals", "AddRedactedGlobals", function()
@@ -59,6 +68,7 @@ hook.Add("TTT2SyncGlobals", "AddRedactedGlobals", function()
 	SetGlobalInt("ttt2_redact_weight_traitor", GetConVar("ttt2_redact_weight_traitor"):GetInt())
 	SetGlobalInt("ttt2_redact_weight_redacted", GetConVar("ttt2_redact_weight_redacted"):GetInt())
 	SetGlobalInt("ttt2_redact_weight_other", GetConVar("ttt2_redact_weight_other"):GetInt())
+	SetGlobalBool("ttt2_redact_can_commune", GetConVar("ttt2_redact_can_commune"):GetBool())
 end)
 
 cvars.AddChangeCallback("ttt2_redact_weight_innocent", function(name, old, new)
@@ -72,4 +82,7 @@ cvars.AddChangeCallback("ttt2_redact_weight_redacted", function(name, old, new)
 end)
 cvars.AddChangeCallback("ttt2_redact_weight_other", function(name, old, new)
 	SetGlobalInt("ttt2_redact_weight_other", tonumber(new))
+end)
+cvars.AddChangeCallback("ttt2_redact_can_commune", function(name, old, new)
+	SetGlobalBool("ttt2_redact_can_commune", tobool(tonumber(new)))
 end)

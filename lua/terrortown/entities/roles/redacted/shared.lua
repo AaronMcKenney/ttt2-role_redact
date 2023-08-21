@@ -33,13 +33,10 @@ function ROLE:PreInitialize()
 	--Ex. Traitor team should be confounded as to who the Redacted as is as everyone else (Note: By default, a gambling Traitor will most likely try to kill the Redacted)
 	self.unknownTeam = true
 	--I think setting unknownTeam to true should be enough, but we set these other params just to be safe
-	self.disabledTeamChat = true
-	self.disabledTeamChatRecv = true
-	self.disabledTeamVoice = true
-	self.disabledTeamVoiceRecv = true
-
-	--Disabling the ability to write in general chat may be necessary to keep social intrigue alive (TODO: TEST VOICE/TEXT CHAT).
-	--BMF--self.disabledGeneralChat = true
+	self.disabledTeamChat = GetConVar("ttt2_redact_can_commune"):GetBool()
+	self.disabledTeamChatRecv = GetConVar("ttt2_redact_can_commune"):GetBool()
+	self.disabledTeamVoice = GetConVar("ttt2_redact_can_commune"):GetBool()
+	self.disabledTeamVoiceRecv = GetConVar("ttt2_redact_can_commune"):GetBool()
 
 	--The Redacted starts off on TEAM_REDACTED_SETUP, for role selection calculations
 	--  However, they quickly change teams based on RNG upon spawn or role change.
@@ -143,7 +140,6 @@ if SERVER then
 		end
 		
 		local r = math.random(tot_weight)
-		r = 91 --BMF REM
 		--print("  r=" .. tostring(r)) --REDACT_DEBUG
 
 		if inn_weight > 0 and r <= inn_weight then
@@ -162,11 +158,19 @@ if SERVER then
 		end
 	end
 	
-	local function RedactPlayer(ply)
+	local function RedactEntity(ply)
 		--TODO: black bounding box
 	end
 	
-	local function UnRedactPlayer(ply)
+	local function UnRedactEntity(ply)
+		--TODO: remove black bounding box
+	end
+	
+	local function RedactLocation(pos)
+		--TODO: black bounding box
+	end
+	
+	local function UnRedactLocation(pos)
 		--TODO: remove black bounding box
 	end
 	
@@ -188,7 +192,8 @@ if SERVER then
 	function ROLE:GiveRoleLoadout(ply, isRoleChange)
 		--By the time we call this function at the start of the game, all players have been loaded in.
 		--So we don't have to worry about a late join, who would otherwise fail to see ply as redacted.
-		RedactPlayer(ply)
+		--BMF REMOVE--RedactPlayer(ply)
+		ply:SetNWBool("IsRedacted", true)
 		
 		--UpdateTeam is called when the player is first given this role in SetRole (and a hook for UpdateTeam won't be run for this)
 		--GiveRoleLoadout is the last function called during SetRole
@@ -208,21 +213,22 @@ if SERVER then
 	end
 
 	function ROLE:RemoveRoleLoadout(ply, isRoleChange)
-		UnRedactPlayer(ply)
+		--BMF REMOVE--UnRedactPlayer(ply)
+		ply:SetNWBool("IsRedacted", false)
 	end
 
 	hook.Add("PlayerSay", "PlayerSayTTT2Redacted", function(ply, text)
 		--Any message the Redacted tries to send is redacted.
 		--Honestly not sure how to use LANG here, as LANG.TryTranslation is Client only. Hopefully noone needs this to be translated.
-		if ply:GetSubRole() == ROLE_REDACTED then
-			ply:ChatPrint("[REDACTED]")
+		if not GetConVar("ttt2_redact_can_commune"):GetBool() and IsValid(ply) and ply:IsPlayer() and ply:GetSubRole() == ROLE_REDACTED and not speaker:IsSpec() then
+			ply:ChatPrint(ply:GetName() .. ": [REDACTED]")
 			return ""
 		end
 	end)
 
 	hook.Add("TTT2CanUseVoiceChat", "TTT2CanUseVoiceChatRedacted", function(speaker, isTeamVoice)
 		--Presumably unnecessary, but TTT2 doesn't explicitly indicate that voice has been disabled. This should alleviate confusion.
-		if IsValid(speaker) and speaker:GetSubRole() == ROLE_REDACTED and not speaker:IsSpec() then
+		if not GetConVar("ttt2_redact_can_commune"):GetBool() and IsValid(speaker) and speaker:IsPlayer() and speaker:GetSubRole() == ROLE_REDACTED and not speaker:IsSpec() then
 			LANG.Msg(speaker, "voice_prevented_" .. REDACTED.name, nil, MSG_CHAT_WARN)
 			return false
 		end
@@ -234,7 +240,7 @@ if SERVER then
 		end
 		
 		for ply_i in pairs(tbl) do
-			if not ply_i:Alive() or IsInSpecDM(ply_i) then
+			if ply == ply_i or not ply_i:Alive() or IsInSpecDM(ply_i) then
 				continue
 			end
 			
@@ -243,7 +249,7 @@ if SERVER then
 				continue
 			end
 			
-			if ply_i:GetSubRole() == ROLE_REDACTED and ply:GetTeam() == ply_i:GetTeam() then
+			if ply_i:GetSubRole() == ROLE_REDACTED then
 				--The teammates of the Redacted can't see that they are on their team.
 				--If they could, Traitors wouldn't hesitate to kill the Redacted, removing some of the social intrigue.
 				--This effectively bypasses roles with unknownTeam set to false (i.e. essentially all non-Innocents)
@@ -276,7 +282,116 @@ if SERVER then
 
 	local function ResetRedactedForServer()
 		REDACT_SETUP_COMPLETE = nil
+		
+		for _, ply in ipairs(player.GetAll()) do
+			ply:SetNWBool("IsRedacted", false)
+		end
 	end
 	hook.Add("TTTEndRound", "TTTEndRoundRedacted", ResetRedactedForServer)
 	hook.Add("TTTPrepareRound", "TTTPrepareRoundRedacted", ResetRedactedForServer)
+end
+
+if CLIENT then
+	--Constants
+	local INT_MIN = -999999999
+	local INT_MAX = 999999999
+	local LEFT_MAX = INT_MAX
+	local UP_MAX = INT_MAX
+	local RIGHT_MIN = INT_MIN
+	local DOWN_MIN = INT_MIN
+
+	local function DrawBlackBoxAroundEntity(ent, alpha)
+		local client = LocalPlayer()
+		local obb_mins = ent:LocalToWorld(ent:OBBMins())
+		local obb_maxs = ent:LocalToWorld(ent:OBBMaxs())
+		local left_most_point = LEFT_MAX
+		local up_most_point = UP_MAX
+		local right_most_point = RIGHT_MIN
+		local down_most_point = DOWN_MIN
+		local cube_vertex_pos = {
+			Vector(obb_mins.x, obb_mins.y, obb_mins.z),
+			Vector(obb_mins.x, obb_mins.y, obb_maxs.z),
+			Vector(obb_mins.x, obb_maxs.y, obb_mins.z),
+			Vector(obb_mins.x, obb_maxs.y, obb_maxs.z),
+			Vector(obb_maxs.x, obb_mins.y, obb_mins.z),
+			Vector(obb_maxs.x, obb_mins.y, obb_maxs.z),
+			Vector(obb_maxs.x, obb_maxs.y, obb_mins.z),
+			Vector(obb_maxs.x, obb_maxs.y, obb_maxs.z)
+		}
+		local off_screen = true
+
+		for i = 1, 8 do
+			local screen_pos = cube_vertex_pos[i]:ToScreen()
+			if util.IsOffScreen(screen_pos) then
+				continue
+			end
+
+			if screen_pos.x < left_most_point then
+				left_most_point = screen_pos.x
+			elseif screen_pos.x > right_most_point then
+				right_most_point = screen_pos.x
+			end
+
+			if screen_pos.y < up_most_point then
+				up_most_point = screen_pos.y
+			elseif screen_pos.y > down_most_point then
+				down_most_point = screen_pos.y
+			end
+
+			off_screen = false
+		end
+
+		if off_screen then
+			print("  Not on screen") --REDACT_DEBUG
+			return
+		end
+		print("  Is on screen") --REDACT_DEBUG
+
+		--If the box in question is partially off screen, alter it to be within the bounds of the client's screen
+		if left_most_point == LEFT_MAX then
+			left_most_point = 0
+		end
+		if up_most_point == UP_MAX then
+			up_most_point = 0
+		end
+		if right_most_point == RIGHT_MIN then
+			right_most_point = ScrW()
+		end
+		if down_most_point == DOWN_MIN then
+			down_most_point = ScrH()
+		end
+
+		--REDACT_DEBUG
+		print("  left_most_point=" .. tostring(left_most_point) .. ", up_most_point=" .. tostring(up_most_point) .. ", right_most_point=" .. tostring(right_most_point) .. ", down_most_point=" .. tostring(down_most_point))
+		--REDACT_DEBUG
+
+		--The box's position is centered in its middle.
+		local box_width = right_most_point - left_most_point
+		local box_height = down_most_point - up_most_point
+
+		surface.SetDrawColor(COLOR_BLACK)
+		surface.DrawRect(left_most_point, up_most_point, box_width, box_height)
+	end
+
+	hook.Add("HUDPaint", "HUDPaintRedacted", function()
+		local client = LocalPlayer()
+
+		for _, ply in ipairs(player.GetAll()) do
+			if (ply:GetSubRole() == ROLE_REDACTED or ply:GetNWBool("IsRedacted")) and ply:SteamID64() ~= client:SteamID64() then
+				local alpha = 255
+				if client:GetSubRole() == ROLE_REDACTED then
+					alpha = 32
+				end
+
+				--REDACT_DEBUG
+				print("REDACT_DEBUG HUDPaint: Calling DrawBlackBox for " .. ply:GetName())
+				cam.Start3D()
+					render.DrawWireframeBox(ply:GetPos(), ply:GetAngles(), ply:OBBMins(), ply:OBBMaxs(), COLOR_RED)
+				cam.End3D()
+				--REDACT_DEBUG
+
+				DrawBlackBoxAroundEntity(ply, alpha)
+			end
+		end
+	end)
 end
