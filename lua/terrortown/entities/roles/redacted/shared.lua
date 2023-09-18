@@ -292,23 +292,23 @@ if SERVER then
 end
 
 if CLIENT then
-	--Constants
-	local INT_MIN = -999999999
-	local INT_MAX = 999999999
-	local LEFT_MAX = INT_MAX
-	local UP_MAX = INT_MAX
-	local RIGHT_MIN = INT_MIN
-	local DOWN_MIN = INT_MIN
-
 	local function DrawBlackBoxAroundEntity(ent, alpha)
 		local client = LocalPlayer()
-		local obb_mins = ent:LocalToWorld(ent:OBBMins())
-		local obb_maxs = ent:LocalToWorld(ent:OBBMaxs())
-		local left_most_point = LEFT_MAX
-		local up_most_point = UP_MAX
-		local right_most_point = RIGHT_MIN
-		local down_most_point = DOWN_MIN
-		local cube_vertex_pos = {
+		local obb_mins = ent:OBBMins()
+		local obb_maxs = ent:OBBMaxs()
+		local obb_mins_world = ent:LocalToWorld(obb_mins)
+		local obb_maxs_world = ent:LocalToWorld(obb_maxs)
+		local cube_vertex_obbs_world = {
+			Vector(obb_mins_world.x, obb_mins_world.y, obb_mins_world.z),
+			Vector(obb_mins_world.x, obb_mins_world.y, obb_maxs_world.z),
+			Vector(obb_mins_world.x, obb_maxs_world.y, obb_mins_world.z),
+			Vector(obb_mins_world.x, obb_maxs_world.y, obb_maxs_world.z),
+			Vector(obb_maxs_world.x, obb_mins_world.y, obb_mins_world.z),
+			Vector(obb_maxs_world.x, obb_mins_world.y, obb_maxs_world.z),
+			Vector(obb_maxs_world.x, obb_maxs_world.y, obb_mins_world.z),
+			Vector(obb_maxs_world.x, obb_maxs_world.y, obb_maxs_world.z)
+		}
+		local cube_vertex_obbs = {
 			Vector(obb_mins.x, obb_mins.y, obb_mins.z),
 			Vector(obb_mins.x, obb_mins.y, obb_maxs.z),
 			Vector(obb_mins.x, obb_maxs.y, obb_mins.z),
@@ -318,74 +318,107 @@ if CLIENT then
 			Vector(obb_maxs.x, obb_maxs.y, obb_mins.z),
 			Vector(obb_maxs.x, obb_maxs.y, obb_maxs.z)
 		}
-		local off_screen = true
+		local is_on_screen = false
+		local is_in_line_of_sight = false
+		local left_most_point = ScrW()
+		local up_most_point = ScrH()
+		local right_most_point = 0
+		local down_most_point = 0
 
-		for i = 1, 8 do
-			local screen_pos = cube_vertex_pos[i]:ToScreen()
-			if util.IsOffScreen(screen_pos) then
-				continue
+		--TODO: Perform additional traces to make sure that the entity is not visually blocked by the environment
+		--  No solution is perfect here, in that we'd have to fire a zillion ray traces just to check if the player is visible, even if by a single pixel of information
+		--  Proposed steps:
+		--    Start with a hull trace the size of the entity in question. Use MASK_VISIBLE here and the client's entity as the filter.
+		--      If this hits the redacted entity, then we're done
+		--    If it doesn't, then there's something that is at least partially blocking the redacted entity.
+		--      In this case, use 5 line traces post for-loop
+
+		--According to the wiki, ToScreen requires a 3D rendering context to work correctly.
+		--https://wiki.facepunch.com/gmod/Vector:ToScreen
+		cam.Start3D()
+			local hull_offset_vec = Vector(7, 7, 7)
+			local tr_center = util.TraceHull({start = client:GetPos(), endpos = ent:GetPos(), filter = client, mask = MASK_SHOT_HULL, mins = obb_mins + hull_offset_vec, maxs = obb_maxs - hull_offset_vec})
+			if IsValid(tr_center.Entity) and tr_center.Entity:EntIndex() == ent:EntIndex() then
+				is_in_line_of_sight = true
+				--print("  TraceHull was successful") --REDACT_DEBUG
 			end
 
-			if screen_pos.x < left_most_point then
-				left_most_point = screen_pos.x
-			elseif screen_pos.x > right_most_point then
-				right_most_point = screen_pos.x
+			--REDACT_DEBUG
+			print("  TraceHull: IsValid(tr_center.Entity)=" .. tostring(IsValid(tr_center.Entity)))
+			if IsValid(tr_center.Entity) then
+				print("    " .. tostring(tr_center.Entity:EntIndex()) .. " versus expected value of " .. tostring(ent:EntIndex()) .. ", is_in_line_of_sight=" .. tostring(is_in_line_of_sight))
 			end
+			render.DrawWireframeBox(tr_center.HitPos, Angle(0, 0, 0), ent:OBBMins() + hull_offset_vec, ent:OBBMaxs() - hull_offset_vec, COLOR_BLUE, true)
+			--REDACT_DEBUG
 
-			if screen_pos.y < up_most_point then
-				up_most_point = screen_pos.y
-			elseif screen_pos.y > down_most_point then
-				down_most_point = screen_pos.y
+			--Edge case: The player is right in front of the redacted entity, such that the vertices of the OBB are all off screen.
+			is_on_screen = is_on_screen or not util.IsOffScreen((ent:GetPos() + ent:OBBCenter()):ToScreen())
+
+			for i = 1, 8 do
+				local screen_pos = cube_vertex_obbs_world[i]:ToScreen()
+
+				is_on_screen = is_on_screen or not util.IsOffScreen(screen_pos)
+
+				if not is_in_line_of_sight then
+					--BMF--local tr_corner = util.TraceLine({start = client:GetPos(), endpos = cube_vertex_obbs_world[i], filter = client, mask = MASK_SHOT_HULL})
+					local tr_corner = util.TraceHull({start = client:GetPos(), endpos = ent:GetPos(), filter = client, mask = MASK_SHOT_HULL, mins = cube_vertex_obbs[i] - hull_offset_vec, maxs = cube_vertex_obbs[i] + hull_offset_vec})
+					if IsValid(tr_corner.Entity) and tr_corner.Entity:EntIndex() == ent:EntIndex() then
+						is_in_line_of_sight = true
+					end
+
+					--REDACT_DEBUG
+					print("  TraceLine(" .. tostring(i) .. ") IsValid(tr_corner.Entity)=" .. tostring(IsValid(tr_corner.Entity)))
+					if IsValid(tr_corner.Entity) then
+						print("    " .. tostring(tr_corner.Entity:EntIndex()) .. " versus expected value of " .. tostring(ent:EntIndex()) .. ", is_in_line_of_sight=" .. tostring(is_in_line_of_sight))
+					end
+					render.DrawWireframeBox(tr_corner.HitPos, Angle(0, 0, 0), cube_vertex_obbs[i] - hull_offset_vec, cube_vertex_obbs[i] + hull_offset_vec, COLOR_GREEN, true)
+					--BMF BAD MINS/MAXS--render.DrawWireframeBox(ent:GetPos(), ent:GetAngles(), cube_vertex_obbs[i] - hull_offset_vec, cube_vertex_obbs[i] + hull_offset_vec, COLOR_GREEN, true)
+					--BMF GOOD--render.DrawWireframeBox(tr_corner.HitPos, ent:GetAngles(), ent:OBBMins() - hull_offset_vec, ent:OBBMins() + hull_offset_vec, COLOR_WHITE, true)
+					--BMF GOOD--render.DrawWireframeBox(tr_corner.HitPos, ent:GetAngles(), ent:OBBMaxs() - hull_offset_vec, ent:OBBMaxs() + hull_offset_vec, COLOR_BLACK, true)
+					--REDACT_DEBUG
+				end
+
+				--BMF DOESN'T WORK--render.DrawLine(client:EyePos(), cube_vertex_obbs_world[i], COLOR_GREEN) --REDACT_DEBUG
+				--BMF DOESN'T WORK--render.DrawLine(client:EyePos(), client:EyePos() + client:EyeAngles():Forward() * 100, COLOR_GREEN) --REDACT_DEBUG
+
+				left_most_point = math.min(screen_pos.x, left_most_point)
+				up_most_point = math.min(screen_pos.y, up_most_point)
+				right_most_point = math.max(screen_pos.x, right_most_point)
+				down_most_point = math.max(screen_pos.y, down_most_point)
 			end
+		cam.End3D()
 
-			off_screen = false
-		end
-
-		if off_screen then
-			print("  Not on screen") --REDACT_DEBUG
+		if not is_on_screen or not is_in_line_of_sight then
+			--print("  Not on screen") --REDACT_DEBUG
 			return
 		end
-		print("  Is on screen") --REDACT_DEBUG
-
-		--If the box in question is partially off screen, alter it to be within the bounds of the client's screen
-		if left_most_point == LEFT_MAX then
-			left_most_point = 0
-		end
-		if up_most_point == UP_MAX then
-			up_most_point = 0
-		end
-		if right_most_point == RIGHT_MIN then
-			right_most_point = ScrW()
-		end
-		if down_most_point == DOWN_MIN then
-			down_most_point = ScrH()
-		end
-
-		--REDACT_DEBUG
-		print("  left_most_point=" .. tostring(left_most_point) .. ", up_most_point=" .. tostring(up_most_point) .. ", right_most_point=" .. tostring(right_most_point) .. ", down_most_point=" .. tostring(down_most_point))
-		--REDACT_DEBUG
 
 		--The box's position is centered in its middle.
 		local box_width = right_most_point - left_most_point
 		local box_height = down_most_point - up_most_point
 
-		surface.SetDrawColor(COLOR_BLACK)
+		--REDACT_DEBUG
+		--print("  left_most_point=" .. tostring(left_most_point) .. ", up_most_point=" .. tostring(up_most_point) .. ", right_most_point=" .. tostring(right_most_point) .. ", down_most_point=" .. tostring(down_most_point))
+		--REDACT_DEBUG
+
+		surface.SetDrawColor(Color(0, 0, 0, alpha))
 		surface.DrawRect(left_most_point, up_most_point, box_width, box_height)
 	end
 
 	hook.Add("HUDPaint", "HUDPaintRedacted", function()
 		local client = LocalPlayer()
 
+		--TODO: Check all redacted entities, not players. May need to maintain a list in case the number of entities is too large? Not sure how much that would save on performance...
 		for _, ply in ipairs(player.GetAll()) do
 			if (ply:GetSubRole() == ROLE_REDACTED or ply:GetNWBool("IsRedacted")) and ply:SteamID64() ~= client:SteamID64() then
 				local alpha = 255
 				if client:GetSubRole() == ROLE_REDACTED then
-					alpha = 32
+					alpha = 190
 				end
 
 				--REDACT_DEBUG
-				print("REDACT_DEBUG HUDPaint: Calling DrawBlackBox for " .. ply:GetName())
 				cam.Start3D()
+					print("REDACT_DEBUG HUDPaint: Calling DrawBlackBox for " .. ply:GetName())
 					render.DrawWireframeBox(ply:GetPos(), ply:GetAngles(), ply:OBBMins(), ply:OBBMaxs(), COLOR_RED)
 				cam.End3D()
 				--REDACT_DEBUG
