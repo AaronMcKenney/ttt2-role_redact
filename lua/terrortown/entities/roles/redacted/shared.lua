@@ -33,10 +33,10 @@ function ROLE:PreInitialize()
 	--Ex. Traitor team should be confounded as to who the Redacted as is as everyone else (Note: By default, a gambling Traitor will most likely try to kill the Redacted)
 	self.unknownTeam = true
 	--I think setting unknownTeam to true should be enough, but we set these other params just to be safe
-	self.disabledTeamChat = GetConVar("ttt2_redact_can_commune"):GetBool()
-	self.disabledTeamChatRecv = GetConVar("ttt2_redact_can_commune"):GetBool()
-	self.disabledTeamVoice = GetConVar("ttt2_redact_can_commune"):GetBool()
-	self.disabledTeamVoiceRecv = GetConVar("ttt2_redact_can_commune"):GetBool()
+	self.disabledTeamChat = true
+	self.disabledTeamChatRecv = true
+	self.disabledTeamVoice = true
+	self.disabledTeamVoiceRecv = true
 
 	--The Redacted starts off on TEAM_REDACTED_SETUP, for role selection calculations
 	--  However, they quickly change teams based on RNG upon spawn or role change.
@@ -220,20 +220,34 @@ if SERVER then
 	hook.Add("PlayerSay", "PlayerSayTTT2Redacted", function(ply, text)
 		--Any message the Redacted tries to send is redacted.
 		--Honestly not sure how to use LANG here, as LANG.TryTranslation is Client only. Hopefully noone needs this to be translated.
-		if not GetConVar("ttt2_redact_can_commune"):GetBool() and IsValid(ply) and ply:IsPlayer() and ply:GetSubRole() == ROLE_REDACTED and not speaker:IsSpec() then
+		if not GetConVar("ttt2_redact_can_commune"):GetBool() and IsValid(ply) and ply:IsPlayer() and ply:GetSubRole() == ROLE_REDACTED and not ply:IsSpec() and not IsInSpecDM(ply) then
 			ply:ChatPrint(ply:GetName() .. ": [REDACTED]")
 			return ""
 		end
 	end)
 
+	hook.Add("TTT2AvoidTeamChat", "TTT2AvoidTeamChatRedacted", function(sender, tm, msg)
+		--Presumably unnecessary, but TTT2 doesn't explicitly indicate that voice has been disabled. This should alleviate confusion.
+		if not IsValid(sender) or not sender:IsPlayer() or sender:GetSubRole() ~= ROLE_REDACTED or sender:IsSpec() or IsInSpecDM(sender) then
+			return
+		end
+
+		LANG.Msg(speaker, "voice_prevented_" .. REDACTED.name, nil, MSG_CHAT_WARN)
+		return false
+	end)
+
 	hook.Add("TTT2CanUseVoiceChat", "TTT2CanUseVoiceChatRedacted", function(speaker, isTeamVoice)
 		--Presumably unnecessary, but TTT2 doesn't explicitly indicate that voice has been disabled. This should alleviate confusion.
-		if not GetConVar("ttt2_redact_can_commune"):GetBool() and IsValid(speaker) and speaker:IsPlayer() and speaker:GetSubRole() == ROLE_REDACTED and not speaker:IsSpec() then
+		if not IsValid(speaker) or not speaker:IsPlayer() or speaker:GetSubRole() ~= ROLE_REDACTED or speaker:IsSpec() or IsInSpecDM(speaker) then
+			return
+		end
+
+		if isTeamVoice or not GetConVar("ttt2_redact_can_commune"):GetBool() then
 			LANG.Msg(speaker, "voice_prevented_" .. REDACTED.name, nil, MSG_CHAT_WARN)
 			return false
 		end
 	end)
-	
+
 	hook.Add("TTT2SpecialRoleSyncing", "TTT2SpecialRoleSyncingRedacted", function (ply, tbl)
 		if GetRoundState() == ROUND_POST then
 			return

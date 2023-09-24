@@ -3,7 +3,8 @@ CreateConVar("ttt2_redact_weight_innocent", "65", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_weight_traitor", "20", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_weight_redacted", "5", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_weight_other", "10", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
-CreateConVar("ttt2_redact_can_commune", "0", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
+CreateConVar("ttt2_redact_can_commune", "1", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
+CreateConVar("ttt2_redact_redact_mode", "0", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 
 hook.Add("TTTUlxDynamicRCVars", "TTTUlxDynamicRedactedCVars", function(tbl)
 	tbl[ROLE_REDACTED] = tbl[ROLE_REDACTED] or {}
@@ -55,11 +56,29 @@ hook.Add("TTTUlxDynamicRCVars", "TTTUlxDynamicRedactedCVars", function(tbl)
 	})
 
 	--# Can the Redacted commune with others through text or voice chat?
-	--  ttt2_redact_can_commune [0/1] (default: 0)
+	--  Even if this is set, the Redacted still won't be able to communicate in team voice/chat (ex. they can't talk to their fellow traitors)
+	--  ttt2_redact_can_commune [0/1] (default: 1)
 	table.insert(tbl[ROLE_REDACTED], {
 		cvar = "ttt2_redact_can_commune",
 		checkbox = true,
-		desc = "ttt2_redact_can_commune (Def: 0)"
+		desc = "ttt2_redact_can_commune (Def: 1)"
+	})
+
+	--# What does it mean for an entity to be "redacted"?
+	--  ttt2_redact_redact_mode [0..2] (default: 0)
+	--  # 0: Smart 2D - 2D black rectangle with depth. Always "in front" of the entity.
+	--  # 1: 3D - 3D black box. Technically the simplest.
+	--  # 2: Dumb 2D - 2D black rectangle without depth. Visible through walls.
+	table.insert(tbl[ROLE_REDACTED], {
+		cvar = "ttt2_redact_redact_mode",
+		combobox = true,
+		desc = "ttt2_redact_redact_mode (Def: 0)",
+		choices = {
+			"0 - Smart 2D",
+			"1 - 3D",
+			"2 - Dumb 2D"
+		},
+		numStart = 0
 	})
 end)
 
@@ -69,6 +88,7 @@ hook.Add("TTT2SyncGlobals", "AddRedactedGlobals", function()
 	SetGlobalInt("ttt2_redact_weight_redacted", GetConVar("ttt2_redact_weight_redacted"):GetInt())
 	SetGlobalInt("ttt2_redact_weight_other", GetConVar("ttt2_redact_weight_other"):GetInt())
 	SetGlobalBool("ttt2_redact_can_commune", GetConVar("ttt2_redact_can_commune"):GetBool())
+	SetGlobalInt("ttt2_redact_redact_mode", GetConVar("ttt2_redact_redact_mode"):GetInt())
 end)
 
 cvars.AddChangeCallback("ttt2_redact_weight_innocent", function(name, old, new)
@@ -85,4 +105,7 @@ cvars.AddChangeCallback("ttt2_redact_weight_other", function(name, old, new)
 end)
 cvars.AddChangeCallback("ttt2_redact_can_commune", function(name, old, new)
 	SetGlobalBool("ttt2_redact_can_commune", tobool(tonumber(new)))
+end)
+cvars.AddChangeCallback("ttt2_redact_redact_mode", function(name, old, new)
+	SetGlobalInt("ttt2_redact_redact_mode", tonumber(new))
 end)
