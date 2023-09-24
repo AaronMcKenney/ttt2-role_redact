@@ -308,78 +308,16 @@ if CLIENT then
 			Vector(obb_maxs_world.x, obb_maxs_world.y, obb_mins_world.z),
 			Vector(obb_maxs_world.x, obb_maxs_world.y, obb_maxs_world.z)
 		}
-		local cube_vertex_obbs = {
-			Vector(obb_mins.x, obb_mins.y, obb_mins.z),
-			Vector(obb_mins.x, obb_mins.y, obb_maxs.z),
-			Vector(obb_mins.x, obb_maxs.y, obb_mins.z),
-			Vector(obb_mins.x, obb_maxs.y, obb_maxs.z),
-			Vector(obb_maxs.x, obb_mins.y, obb_mins.z),
-			Vector(obb_maxs.x, obb_mins.y, obb_maxs.z),
-			Vector(obb_maxs.x, obb_maxs.y, obb_mins.z),
-			Vector(obb_maxs.x, obb_maxs.y, obb_maxs.z)
-		}
-		local is_on_screen = false
-		local is_in_line_of_sight = false
 		local left_most_point = ScrW()
 		local up_most_point = ScrH()
 		local right_most_point = 0
 		local down_most_point = 0
 
-		--TODO: Perform additional traces to make sure that the entity is not visually blocked by the environment
-		--  No solution is perfect here, in that we'd have to fire a zillion ray traces just to check if the player is visible, even if by a single pixel of information
-		--  Proposed steps:
-		--    Start with a hull trace the size of the entity in question. Use MASK_VISIBLE here and the client's entity as the filter.
-		--      If this hits the redacted entity, then we're done
-		--    If it doesn't, then there's something that is at least partially blocking the redacted entity.
-		--      In this case, use 5 line traces post for-loop
-
 		--According to the wiki, ToScreen requires a 3D rendering context to work correctly.
 		--https://wiki.facepunch.com/gmod/Vector:ToScreen
 		cam.Start3D()
-			local hull_offset_vec = Vector(7, 7, 7)
-			local tr_center = util.TraceHull({start = client:GetPos(), endpos = ent:GetPos(), filter = client, mask = MASK_SHOT_HULL, mins = obb_mins + hull_offset_vec, maxs = obb_maxs - hull_offset_vec})
-			if IsValid(tr_center.Entity) and tr_center.Entity:EntIndex() == ent:EntIndex() then
-				is_in_line_of_sight = true
-				--print("  TraceHull was successful") --REDACT_DEBUG
-			end
-
-			--REDACT_DEBUG
-			print("  TraceHull: IsValid(tr_center.Entity)=" .. tostring(IsValid(tr_center.Entity)))
-			if IsValid(tr_center.Entity) then
-				print("    " .. tostring(tr_center.Entity:EntIndex()) .. " versus expected value of " .. tostring(ent:EntIndex()) .. ", is_in_line_of_sight=" .. tostring(is_in_line_of_sight))
-			end
-			render.DrawWireframeBox(tr_center.HitPos, Angle(0, 0, 0), ent:OBBMins() + hull_offset_vec, ent:OBBMaxs() - hull_offset_vec, COLOR_BLUE, true)
-			--REDACT_DEBUG
-
-			--Edge case: The player is right in front of the redacted entity, such that the vertices of the OBB are all off screen.
-			is_on_screen = is_on_screen or not util.IsOffScreen((ent:GetPos() + ent:OBBCenter()):ToScreen())
-
 			for i = 1, 8 do
 				local screen_pos = cube_vertex_obbs_world[i]:ToScreen()
-
-				is_on_screen = is_on_screen or not util.IsOffScreen(screen_pos)
-
-				if not is_in_line_of_sight then
-					--BMF--local tr_corner = util.TraceLine({start = client:GetPos(), endpos = cube_vertex_obbs_world[i], filter = client, mask = MASK_SHOT_HULL})
-					local tr_corner = util.TraceHull({start = client:GetPos(), endpos = ent:GetPos(), filter = client, mask = MASK_SHOT_HULL, mins = cube_vertex_obbs[i] - hull_offset_vec, maxs = cube_vertex_obbs[i] + hull_offset_vec})
-					if IsValid(tr_corner.Entity) and tr_corner.Entity:EntIndex() == ent:EntIndex() then
-						is_in_line_of_sight = true
-					end
-
-					--REDACT_DEBUG
-					print("  TraceLine(" .. tostring(i) .. ") IsValid(tr_corner.Entity)=" .. tostring(IsValid(tr_corner.Entity)))
-					if IsValid(tr_corner.Entity) then
-						print("    " .. tostring(tr_corner.Entity:EntIndex()) .. " versus expected value of " .. tostring(ent:EntIndex()) .. ", is_in_line_of_sight=" .. tostring(is_in_line_of_sight))
-					end
-					render.DrawWireframeBox(tr_corner.HitPos, Angle(0, 0, 0), cube_vertex_obbs[i] - hull_offset_vec, cube_vertex_obbs[i] + hull_offset_vec, COLOR_GREEN, true)
-					--BMF BAD MINS/MAXS--render.DrawWireframeBox(ent:GetPos(), ent:GetAngles(), cube_vertex_obbs[i] - hull_offset_vec, cube_vertex_obbs[i] + hull_offset_vec, COLOR_GREEN, true)
-					--BMF GOOD--render.DrawWireframeBox(tr_corner.HitPos, ent:GetAngles(), ent:OBBMins() - hull_offset_vec, ent:OBBMins() + hull_offset_vec, COLOR_WHITE, true)
-					--BMF GOOD--render.DrawWireframeBox(tr_corner.HitPos, ent:GetAngles(), ent:OBBMaxs() - hull_offset_vec, ent:OBBMaxs() + hull_offset_vec, COLOR_BLACK, true)
-					--REDACT_DEBUG
-				end
-
-				--BMF DOESN'T WORK--render.DrawLine(client:EyePos(), cube_vertex_obbs_world[i], COLOR_GREEN) --REDACT_DEBUG
-				--BMF DOESN'T WORK--render.DrawLine(client:EyePos(), client:EyePos() + client:EyeAngles():Forward() * 100, COLOR_GREEN) --REDACT_DEBUG
 
 				left_most_point = math.min(screen_pos.x, left_most_point)
 				up_most_point = math.min(screen_pos.y, up_most_point)
@@ -387,11 +325,6 @@ if CLIENT then
 				down_most_point = math.max(screen_pos.y, down_most_point)
 			end
 		cam.End3D()
-
-		if not is_on_screen or not is_in_line_of_sight then
-			--print("  Not on screen") --REDACT_DEBUG
-			return
-		end
 
 		--The box's position is centered in its middle.
 		local box_width = right_most_point - left_most_point
@@ -417,10 +350,10 @@ if CLIENT then
 				end
 
 				--REDACT_DEBUG
-				cam.Start3D()
-					print("REDACT_DEBUG HUDPaint: Calling DrawBlackBox for " .. ply:GetName())
-					render.DrawWireframeBox(ply:GetPos(), ply:GetAngles(), ply:OBBMins(), ply:OBBMaxs(), COLOR_RED)
-				cam.End3D()
+				--cam.Start3D()
+				--	print("REDACT_DEBUG HUDPaint: Calling DrawBlackBox for " .. ply:GetName())
+				--	render.DrawWireframeBox(ply:GetPos(), ply:GetAngles(), ply:OBBMins(), ply:OBBMaxs(), COLOR_RED)
+				--cam.End3D()
 				--REDACT_DEBUG
 
 				DrawBlackBoxAroundEntity(ply, alpha)
@@ -428,3 +361,41 @@ if CLIENT then
 		end
 	end)
 end
+
+--TODO:
+--0. Problem Statement: Our current setup draws the black rectangle in 2D space. It requires little math to cover up the entity, but requires a lot of raycasting to determine if the entity is partially covered by the world.
+--   If we imbue the rectangle with depth, then it will always be drawn in a manner that can handle partial visibility scenarios.
+--1. Migrate logic to PostDrawTranslucentRenderables and clean up code, especially by removing TraceHull and TraceLine. Keep the ToScreen logic, as it will likely be used for specific edge cases.
+--2. Similar to how the Impostor Station's GUI is drawn, it must be possible to place the black rectangle in a manner that:
+--   It always faces the client
+--   Its size is equal to or greater than the OBB that the entity has
+--   It is always in front of the entity
+--
+--Idea 0:
+--  Retrieve the OBBs from the redacted entity with OBBMins and OBBMaxs
+--  Construct a list of 8 vertices that are the OBB's world coordinates (utilize LocalToWorld for this)
+--  Make these vertices "camera oriented" via vertex - client's position
+--  Find the projection of each of these vertices about the client's right and up axes (see wiki article on vector projection)
+--  The width and height will be the largest difference in the magnitudes of these projections across the right axis projection and the up axis projection respectively.
+--  The position is almost the entity's position + OBBCenter, but it needs to be pushed forward to the forward-most vertex in the OBB at least (assuming we don't go right in front of the entity and into its OBB)
+--    The extra vector that will be added here is computed by:
+--    Finding the forward projection of all 8 vertices
+--    Pick out the vertex that has the smallest magnitude and call it "forward-most"
+--    Project the entity's center (GetPos + GetOBBCenter) onto the client's forward axis.
+--    The vector created by (forward-projected-center - "forward-most") is the vector that will need to be added.
+--  Edge case: the client is too close to the entity for a 3D projected rectangle to feasibly cover up the entire entity
+--    i.e. the magnitude of the vector (forward-projected-center - "forward-most") is greater or equal to the magnitude of forward-projected-center
+--    To handle this, save the entity's current texture/material/whatever. It is colored pure black to give the aesthetic of being censored even though the client can see it.
+--      Calling ent:SetColor(COLOR_BLACK) will make them black (must be done on the server), but they will still have lighting/texture. May also need to call ent:SetMaterial("").
+--    In addition, the Redacted STATUS is applied to the client for as long as they are too close to the entity, which:
+--      Reduces the client's speed by 20%
+--      Darkens their screen
+--      Makes random black squares appear on their screen, popping into and out of existence
+--      Adds in audible static noise.
+--
+--Idea 1:
+--  Construct the black rectangle as usual (i.e. by mapping the OBB vertices to world and finding the (x,y,w,h) dimensions of the box through min/max compares
+--  Let its normal be equal to the eye angles.
+--  Determine the rectangle's depth. This is as simple as finding the position of the entity, technically.
+--  If needed, reshape the rectangle such that it will still cover the entity at its new depth. This is the hard part. Presumably requires some math pertaining to FOV.
+--  Draw the rectangle with DrawQuadEasy.
