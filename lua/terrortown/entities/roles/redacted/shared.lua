@@ -295,9 +295,9 @@ if SERVER then
 	end)
 
 	hook.Add("TTTOnCorpseCreated", "TTTOnCorpseCreatedRedacted", function(rag, ply)
-		--TODO: Redact the corpse (black bounding box).
-		--TODO: Use ConVar to redact the corpse's team
-		--  (false by default: If the Detective/Traitor wants to waste credits to revive the player, they may do so by default. Otherwise, they may kill the Redacted on sight through some errant logic).
+		if ply:GetNWBool("TTT2IsRedacted") then
+			rag:SetNWBool("TTT2IsRedacted", true)
+		end
 	end)
 
 	local function ResetRedactedForServer()
