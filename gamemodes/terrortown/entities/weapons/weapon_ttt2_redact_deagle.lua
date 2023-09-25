@@ -68,12 +68,12 @@ SWEP.Primary.Sound = Sound("Weapon_Deagle.Single")
 SWEP.IronSightsPos = Vector(-6.361, -3.701, 2.15)
 SWEP.IronSightsAng = Vector(0, 0, 0)
 
-local refill_in_progress = false
-
 function SWEP:Initialize()
 	if CLIENT then
 		return
 	end
+
+	self.refill_in_progress = false
 
 	self:BeginRefilling()
 end
@@ -83,7 +83,7 @@ local function CanRefill(wep)
 		return false
 	end
 
-	return (GetConVar("ttt2_redact_deagle_refill_time"):GetInt() > 0 and wep.Weapon:Clip1() < wep.Weapon:GetMaxClip1())
+	return (GetConVar("ttt2_redact_deagle_refill_time"):GetInt() > 0 and wep:Clip1() < wep:GetMaxClip1())
 end
 
 local function Refill(wep)
@@ -94,7 +94,7 @@ local function Refill(wep)
 	wep:SetClip1(wep:Clip1() + 1)
 
 	if not CanRefill(wep) then
-		refill_in_progress = false
+		self.refill_in_progress = false
 	else
 		wep:BeginRefilling()
 	end
@@ -105,7 +105,7 @@ function SWEP:BeginRefilling()
 		return
 	end
 
-	refill_in_progress = true
+	self.refill_in_progress = true
 
 	local refill_time = GetConVar("ttt2_redact_deagle_refill_time"):GetInt()
 	timer.Simple(refill_time, function()
@@ -124,7 +124,7 @@ local function RedactDeagleCallback(attacker, tr, dmg)
 	end
 
 	local wep = attacker:GetWeapon("weapon_ttt2_redact_deagle")
-	if IsValid(wep) and not refill_in_progress then
+	if IsValid(wep) and not wep.refill_in_progress then
 		wep:BeginRefilling()
 	end
 
