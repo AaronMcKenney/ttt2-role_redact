@@ -5,6 +5,7 @@ CreateConVar("ttt2_redact_weight_redacted", "5", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_weight_other", "10", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_can_commune", "1", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_mode", "0", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
+CreateConVar("ttt2_redact_error", "0", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_deagle_enable", "1", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_deagle_starting_ammo", "3", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_deagle_capacity", "9", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
@@ -85,6 +86,14 @@ hook.Add("TTTUlxDynamicRCVars", "TTTUlxDynamicRedactedCVars", function(tbl)
 		numStart = 0
 	})
 
+	--# ERROR
+	--  ttt2_redact_error [0/1] (default: 0)
+	table.insert(tbl[ROLE_REDACTED], {
+		cvar = "ttt2_redact_error",
+		checkbox = true,
+		desc = "ttt2_redact_error (Def: 0)"
+	})
+
 	--# Does the Redacted spawn with a Redact Deagle?
 	--  ttt2_redact_deagle_enable [0/1] (default: 1)
 	table.insert(tbl[ROLE_REDACTED], {
@@ -134,6 +143,7 @@ hook.Add("TTT2SyncGlobals", "AddRedactedGlobals", function()
 	SetGlobalInt("ttt2_redact_weight_other", GetConVar("ttt2_redact_weight_other"):GetInt())
 	SetGlobalBool("ttt2_redact_can_commune", GetConVar("ttt2_redact_can_commune"):GetBool())
 	SetGlobalInt("ttt2_redact_mode", GetConVar("ttt2_redact_mode"):GetInt())
+	SetGlobalBool("ttt2_redact_error", GetConVar("ttt2_redact_error"):GetBool())
 	SetGlobalBool("ttt2_redact_deagle_enable", GetConVar("ttt2_redact_deagle_enable"):GetBool())
 	SetGlobalInt("ttt2_redact_deagle_starting_ammo", GetConVar("ttt2_redact_deagle_starting_ammo"):GetInt())
 	SetGlobalInt("ttt2_redact_deagle_capacity", GetConVar("ttt2_redact_deagle_capacity"):GetInt())
@@ -157,6 +167,9 @@ cvars.AddChangeCallback("ttt2_redact_can_commune", function(name, old, new)
 end)
 cvars.AddChangeCallback("ttt2_redact_mode", function(name, old, new)
 	SetGlobalInt("ttt2_redact_mode", tonumber(new))
+end)
+cvars.AddChangeCallback("ttt2_redact_error", function(name, old, new)
+	SetGlobalBool("ttt2_redact_error", tobool(tonumber(new)))
 end)
 cvars.AddChangeCallback("ttt2_redact_deagle_enable", function(name, old, new)
 	SetGlobalBool("ttt2_redact_deagle_enable", tobool(tonumber(new)))

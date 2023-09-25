@@ -316,7 +316,29 @@ if CLIENT then
 	local REDACT_MODE = {SMART_2D = 0, SIMPLE_3D = 1, DUMB_2D = 2}
 	local redact_mode = GetConVar("ttt2_redact_mode"):GetInt()
 
-	if redact_mode == REDACT_MODE.DUMB_2D then
+	local function CanRedactEnt(ent)
+		return (IsValid(ent) and ent:GetNWBool("TTT2IsRedacted") and (not ent:IsPlayer() or (ent:SteamID64() ~= LocalPlayer():SteamID64() and ent:Alive() and not IsInSpecDM(ent))))
+	end
+
+	if redact_mode == REDACT_MODE.SIMPLE_3D then
+		hook.Add("PostDrawTranslucentRenderables", "PostDrawTranslucentRenderablesRedacted", function()
+			local client = LocalPlayer()
+			local alpha = 255
+			if client:GetSubRole() == ROLE_REDACTED then
+				alpha = 190
+			end
+			local color_redact = Color(0, 0, 0, alpha)
+
+			for _, ent in ipairs(ents.GetAll()) do
+				if CanRedactEnt(ent) then
+					if not GetConVar("ttt2_redact_error"):GetBool() then
+						render.SetColorMaterial()
+					end
+					render.DrawBox(ent:GetPos(), ent:GetAngles(), ent:OBBMins(), ent:OBBMaxs(), color_redact)
+				end
+			end
+		end)
+	elseif redact_mode == REDACT_MODE.DUMB_2D then
 		local function DrawBlackBoxAroundEntity(ent, alpha)
 			local client = LocalPlayer()
 			local obb_mins = ent:OBBMins()
@@ -382,7 +404,7 @@ if CLIENT then
 			end
 
 			for _, ent in ipairs(ents.GetAll()) do
-				if ent:GetNWBool("TTT2IsRedacted") and (not ent:IsPlayer() or ent:SteamID64() ~= client:SteamID64()) then
+				if CanRedactEnt(ent) then
 
 					--REDACT_DEBUG
 					--cam.Start3D()
