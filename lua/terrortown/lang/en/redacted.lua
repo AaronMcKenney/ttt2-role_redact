@@ -22,4 +22,8 @@ L["ev_win_" .. TEAM_REDACTED_SETUP] = "[REDACTED]"
 --L["redacted_" .. REDACTED.name] = "[REDACTED]"
 L["voice_prevented_" .. REDACTED.name] = "[REDACTED] can't speak!"
 
+-- REDACT DEAGLE
+L["DEAGLE_NAME_" .. REDACTED.name] = "Redact Deagle"
+L["DEAGLE_DESC_" .. REDACTED.name] = "Redact an entity or a part of the world."
+
 --EVENT STRINGS

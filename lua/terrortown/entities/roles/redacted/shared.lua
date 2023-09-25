@@ -190,10 +190,14 @@ if SERVER then
 	end)
 
 	function ROLE:GiveRoleLoadout(ply, isRoleChange)
+		if GetConVar("ttt2_redact_deagle_enable"):GetBool() then
+			ply:GiveEquipmentWeapon('weapon_ttt2_redact_deagle')
+		end
+
 		--By the time we call this function at the start of the game, all players have been loaded in.
 		--So we don't have to worry about a late join, who would otherwise fail to see ply as redacted.
 		--BMF REMOVE--RedactPlayer(ply)
-		ply:SetNWBool("IsRedacted", true)
+		ply:SetNWBool("TTT2IsRedacted", true)
 		
 		--UpdateTeam is called when the player is first given this role in SetRole (and a hook for UpdateTeam won't be run for this)
 		--GiveRoleLoadout is the last function called during SetRole
@@ -213,8 +217,10 @@ if SERVER then
 	end
 
 	function ROLE:RemoveRoleLoadout(ply, isRoleChange)
+		ply:StripWeapon('weapon_ttt2_redact_deagle')
+
 		--BMF REMOVE--UnRedactPlayer(ply)
-		ply:SetNWBool("IsRedacted", false)
+		ply:SetNWBool("TTT2IsRedacted", false)
 	end
 
 	hook.Add("PlayerSay", "PlayerSayTTT2Redacted", function(ply, text)
@@ -298,7 +304,7 @@ if SERVER then
 		REDACT_SETUP_COMPLETE = nil
 		
 		for _, ply in ipairs(player.GetAll()) do
-			ply:SetNWBool("IsRedacted", false)
+			ply:SetNWBool("TTT2IsRedacted", false)
 		end
 	end
 	hook.Add("TTTEndRound", "TTTEndRoundRedacted", ResetRedactedForServer)
@@ -306,74 +312,92 @@ if SERVER then
 end
 
 if CLIENT then
-	local function DrawBlackBoxAroundEntity(ent, alpha)
-		local client = LocalPlayer()
-		local obb_mins = ent:OBBMins()
-		local obb_maxs = ent:OBBMaxs()
-		local obb_mins_world = ent:LocalToWorld(obb_mins)
-		local obb_maxs_world = ent:LocalToWorld(obb_maxs)
-		local cube_vertex_obbs_world = {
-			Vector(obb_mins_world.x, obb_mins_world.y, obb_mins_world.z),
-			Vector(obb_mins_world.x, obb_mins_world.y, obb_maxs_world.z),
-			Vector(obb_mins_world.x, obb_maxs_world.y, obb_mins_world.z),
-			Vector(obb_mins_world.x, obb_maxs_world.y, obb_maxs_world.z),
-			Vector(obb_maxs_world.x, obb_mins_world.y, obb_mins_world.z),
-			Vector(obb_maxs_world.x, obb_mins_world.y, obb_maxs_world.z),
-			Vector(obb_maxs_world.x, obb_maxs_world.y, obb_mins_world.z),
-			Vector(obb_maxs_world.x, obb_maxs_world.y, obb_maxs_world.z)
-		}
-		local left_most_point = ScrW()
-		local up_most_point = ScrH()
-		local right_most_point = 0
-		local down_most_point = 0
+	--Enum and cached variable for redact mode. Client must be restarted for changes to this mode to take effect. Cached to reduce unnecessary hook creation, as the hooks run frequently
+	local REDACT_MODE = {SMART_2D = 0, SIMPLE_3D = 1, DUMB_2D = 2}
+	local redact_mode = GetConVar("ttt2_redact_mode"):GetInt()
 
-		--According to the wiki, ToScreen requires a 3D rendering context to work correctly.
-		--https://wiki.facepunch.com/gmod/Vector:ToScreen
-		cam.Start3D()
-			for i = 1, 8 do
-				local screen_pos = cube_vertex_obbs_world[i]:ToScreen()
+	if redact_mode == REDACT_MODE.DUMB_2D then
+		local function DrawBlackBoxAroundEntity(ent, alpha)
+			local client = LocalPlayer()
+			local obb_mins = ent:OBBMins()
+			local obb_maxs = ent:OBBMaxs()
+			local obb_mins_world = ent:LocalToWorld(obb_mins)
+			local obb_maxs_world = ent:LocalToWorld(obb_maxs)
+			local cube_vertex_obbs_world = {
+				Vector(obb_mins_world.x, obb_mins_world.y, obb_mins_world.z),
+				Vector(obb_mins_world.x, obb_mins_world.y, obb_maxs_world.z),
+				Vector(obb_mins_world.x, obb_maxs_world.y, obb_mins_world.z),
+				Vector(obb_mins_world.x, obb_maxs_world.y, obb_maxs_world.z),
+				Vector(obb_maxs_world.x, obb_mins_world.y, obb_mins_world.z),
+				Vector(obb_maxs_world.x, obb_mins_world.y, obb_maxs_world.z),
+				Vector(obb_maxs_world.x, obb_maxs_world.y, obb_mins_world.z),
+				Vector(obb_maxs_world.x, obb_maxs_world.y, obb_maxs_world.z)
+			}
+			local left_most_point = ScrW()
+			local up_most_point = ScrH()
+			local right_most_point = 0
+			local down_most_point = 0
+			local is_on_screen = false
 
-				left_most_point = math.min(screen_pos.x, left_most_point)
-				up_most_point = math.min(screen_pos.y, up_most_point)
-				right_most_point = math.max(screen_pos.x, right_most_point)
-				down_most_point = math.max(screen_pos.y, down_most_point)
-			end
-		cam.End3D()
+			--According to the wiki, ToScreen requires a 3D rendering context to work correctly.
+			--https://wiki.facepunch.com/gmod/Vector:ToScreen
+			cam.Start3D()
+				--Edge case: The player is right in front of the redacted entity, such that the vertices of the OBB are all off screen.
+                is_on_screen = is_on_screen or not util.IsOffScreen((ent:GetPos() + ent:OBBCenter()):ToScreen())
 
-		--The box's position is centered in its middle.
-		local box_width = right_most_point - left_most_point
-		local box_height = down_most_point - up_most_point
+				for i = 1, 8 do
+					local screen_pos = cube_vertex_obbs_world[i]:ToScreen()
+					is_on_screen = is_on_screen or not util.IsOffScreen(screen_pos)
 
-		--REDACT_DEBUG
-		--print("  left_most_point=" .. tostring(left_most_point) .. ", up_most_point=" .. tostring(up_most_point) .. ", right_most_point=" .. tostring(right_most_point) .. ", down_most_point=" .. tostring(down_most_point))
-		--REDACT_DEBUG
-
-		surface.SetDrawColor(Color(0, 0, 0, alpha))
-		surface.DrawRect(left_most_point, up_most_point, box_width, box_height)
-	end
-
-	hook.Add("HUDPaint", "HUDPaintRedacted", function()
-		local client = LocalPlayer()
-
-		--TODO: Check all redacted entities, not players. May need to maintain a list in case the number of entities is too large? Not sure how much that would save on performance...
-		for _, ply in ipairs(player.GetAll()) do
-			if (ply:GetSubRole() == ROLE_REDACTED or ply:GetNWBool("IsRedacted")) and ply:SteamID64() ~= client:SteamID64() then
-				local alpha = 255
-				if client:GetSubRole() == ROLE_REDACTED then
-					alpha = 190
+					left_most_point = math.min(screen_pos.x, left_most_point)
+					up_most_point = math.min(screen_pos.y, up_most_point)
+					right_most_point = math.max(screen_pos.x, right_most_point)
+					down_most_point = math.max(screen_pos.y, down_most_point)
 				end
+			cam.End3D()
 
-				--REDACT_DEBUG
-				--cam.Start3D()
-				--	print("REDACT_DEBUG HUDPaint: Calling DrawBlackBox for " .. ply:GetName())
-				--	render.DrawWireframeBox(ply:GetPos(), ply:GetAngles(), ply:OBBMins(), ply:OBBMaxs(), COLOR_RED)
-				--cam.End3D()
-				--REDACT_DEBUG
-
-				DrawBlackBoxAroundEntity(ply, alpha)
+			--Note: This method is flawed. To truly check this, we would need to test a lot of points in the projected rectangle to see if they're on or off the screen.
+			if not is_on_screen then
+				--print("  Not on screen") --REDACT_DEBUG
+				return
 			end
+
+			--The box's position is centered in its middle.
+			local box_width = right_most_point - left_most_point
+			local box_height = down_most_point - up_most_point
+
+			--REDACT_DEBUG
+			--print("  left_most_point=" .. tostring(left_most_point) .. ", up_most_point=" .. tostring(up_most_point) .. ", right_most_point=" .. tostring(right_most_point) .. ", down_most_point=" .. tostring(down_most_point))
+			--REDACT_DEBUG
+
+			surface.SetDrawColor(Color(0, 0, 0, alpha))
+			surface.DrawRect(left_most_point, up_most_point, box_width, box_height)
 		end
-	end)
+
+		hook.Add("HUDPaint", "HUDPaintRedactedDumb2D", function()
+			local client = LocalPlayer()
+
+			--TODO: Check all redacted entities, not players. May need to maintain a list in case the number of entities is too large? Not sure how much that would save on performance...
+			for _, ply in ipairs(player.GetAll()) do
+				if (ply:GetSubRole() == ROLE_REDACTED or ply:GetNWBool("TTT2IsRedacted")) and ply:SteamID64() ~= client:SteamID64() then
+					local alpha = 255
+					if client:GetSubRole() == ROLE_REDACTED then
+						alpha = 190
+					end
+
+					--REDACT_DEBUG
+					--cam.Start3D()
+					--	print("REDACT_DEBUG HUDPaint: Calling DrawBlackBox for " .. ply:GetName())
+					--	render.DrawWireframeBox(ply:GetPos(), ply:GetAngles(), ply:OBBMins(), ply:OBBMaxs(), COLOR_RED)
+					--cam.End3D()
+					--REDACT_DEBUG
+
+					DrawBlackBoxAroundEntity(ply, alpha)
+				end
+			end
+		end)
+	end --DUMB_2D
+
 end
 
 --TODO:

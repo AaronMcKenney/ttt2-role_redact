@@ -4,7 +4,11 @@ CreateConVar("ttt2_redact_weight_traitor", "20", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_weight_redacted", "5", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_weight_other", "10", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_can_commune", "1", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
-CreateConVar("ttt2_redact_redact_mode", "0", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
+CreateConVar("ttt2_redact_mode", "0", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
+CreateConVar("ttt2_redact_deagle_enable", "1", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
+CreateConVar("ttt2_redact_deagle_starting_ammo", "3", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
+CreateConVar("ttt2_redact_deagle_capacity", "9", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
+CreateConVar("ttt2_redact_deagle_refill_time", "30", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 
 hook.Add("TTTUlxDynamicRCVars", "TTTUlxDynamicRedactedCVars", function(tbl)
 	tbl[ROLE_REDACTED] = tbl[ROLE_REDACTED] or {}
@@ -65,20 +69,61 @@ hook.Add("TTTUlxDynamicRCVars", "TTTUlxDynamicRedactedCVars", function(tbl)
 	})
 
 	--# What does it mean for an entity to be "redacted"?
-	--  ttt2_redact_redact_mode [0..2] (default: 0)
+	--  ttt2_redact_mode [0..2] (default: 0)
 	--  # 0: Smart 2D - 2D black rectangle with depth. Always "in front" of the entity.
 	--  # 1: 3D - 3D black box. Technically the simplest.
-	--  # 2: Dumb 2D - 2D black rectangle without depth. Visible through walls.
+	--  # 2: Dumb 2D - 2D black rectangle without depth. Visible through walls. Mostly used for debugging.
 	table.insert(tbl[ROLE_REDACTED], {
-		cvar = "ttt2_redact_redact_mode",
+		cvar = "ttt2_redact_mode",
 		combobox = true,
-		desc = "ttt2_redact_redact_mode (Def: 0)",
+		desc = "ttt2_redact_mode (Def: 0)",
 		choices = {
 			"0 - Smart 2D",
 			"1 - 3D",
 			"2 - Dumb 2D"
 		},
 		numStart = 0
+	})
+
+	--# Does the Redacted spawn with a Redact Deagle?
+	--  ttt2_redact_deagle_enable [0/1] (default: 1)
+	table.insert(tbl[ROLE_REDACTED], {
+		cvar = "ttt2_redact_deagle_enable",
+		checkbox = true,
+		desc = "ttt2_redact_deagle_enable (Def: 1)"
+	})
+
+	--# How much ammo does the Redact Deagle start with?
+	--  ttt2_redact_deagle_starting_ammo [0..n] (default: 3)
+	table.insert(tbl[ROLE_REDACTED], {
+		cvar = "ttt2_redact_deagle_starting_ammo",
+		slider = true,
+		min = 0,
+		max = 12,
+		decimal = 0,
+		desc = "ttt2_redact_deagle_starting_ammo (Def: 3)"
+	})
+
+	--# How much ammo is the Redact Deagle capable of holding?
+	--  ttt2_redact_deagle_capacity [0..n] (default: 9)
+	table.insert(tbl[ROLE_REDACTED], {
+		cvar = "ttt2_redact_deagle_capacity",
+		slider = true,
+		min = 1,
+		max = 12,
+		decimal = 0,
+		desc = "ttt2_redact_deagle_capacity (Def: 9)"
+	})
+
+	--# How many seconds until the Redact Deagle refills one bullet (0 to prevent refilling)?
+	--  ttt2_redact_deagle_refill_time [0..n] (default: 30)
+	table.insert(tbl[ROLE_REDACTED], {
+		cvar = "ttt2_redact_deagle_refill_time",
+		slider = true,
+		min = 0,
+		max = 120,
+		decimal = 0,
+		desc = "ttt2_redact_deagle_refill_time (Def: 30)"
 	})
 end)
 
@@ -88,7 +133,11 @@ hook.Add("TTT2SyncGlobals", "AddRedactedGlobals", function()
 	SetGlobalInt("ttt2_redact_weight_redacted", GetConVar("ttt2_redact_weight_redacted"):GetInt())
 	SetGlobalInt("ttt2_redact_weight_other", GetConVar("ttt2_redact_weight_other"):GetInt())
 	SetGlobalBool("ttt2_redact_can_commune", GetConVar("ttt2_redact_can_commune"):GetBool())
-	SetGlobalInt("ttt2_redact_redact_mode", GetConVar("ttt2_redact_redact_mode"):GetInt())
+	SetGlobalInt("ttt2_redact_mode", GetConVar("ttt2_redact_mode"):GetInt())
+	SetGlobalBool("ttt2_redact_deagle_enable", GetConVar("ttt2_redact_deagle_enable"):GetBool())
+	SetGlobalInt("ttt2_redact_deagle_starting_ammo", GetConVar("ttt2_redact_deagle_starting_ammo"):GetInt())
+	SetGlobalInt("ttt2_redact_deagle_capacity", GetConVar("ttt2_redact_deagle_capacity"):GetInt())
+	SetGlobalInt("ttt2_redact_deagle_refill_time", GetConVar("ttt2_redact_deagle_refill_time"):GetInt())
 end)
 
 cvars.AddChangeCallback("ttt2_redact_weight_innocent", function(name, old, new)
@@ -106,6 +155,18 @@ end)
 cvars.AddChangeCallback("ttt2_redact_can_commune", function(name, old, new)
 	SetGlobalBool("ttt2_redact_can_commune", tobool(tonumber(new)))
 end)
-cvars.AddChangeCallback("ttt2_redact_redact_mode", function(name, old, new)
-	SetGlobalInt("ttt2_redact_redact_mode", tonumber(new))
+cvars.AddChangeCallback("ttt2_redact_mode", function(name, old, new)
+	SetGlobalInt("ttt2_redact_mode", tonumber(new))
+end)
+cvars.AddChangeCallback("ttt2_redact_deagle_enable", function(name, old, new)
+	SetGlobalBool("ttt2_redact_deagle_enable", tobool(tonumber(new)))
+end)
+cvars.AddChangeCallback("ttt2_redact_deagle_starting_ammo", function(name, old, new)
+	SetGlobalInt("ttt2_redact_deagle_starting_ammo", tonumber(new))
+end)
+cvars.AddChangeCallback("ttt2_redact_deagle_capacity", function(name, old, new)
+	SetGlobalInt("ttt2_redact_deagle_capacity", tonumber(new))
+end)
+cvars.AddChangeCallback("ttt2_redact_deagle_refill_time", function(name, old, new)
+	SetGlobalInt("ttt2_redact_deagle_refill_time", tonumber(new))
 end)
