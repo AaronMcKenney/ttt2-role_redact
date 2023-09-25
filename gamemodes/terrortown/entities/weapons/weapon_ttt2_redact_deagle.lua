@@ -94,7 +94,7 @@ local function Refill(wep)
 	wep:SetClip1(wep:Clip1() + 1)
 
 	if not CanRefill(wep) then
-		self.refill_in_progress = false
+		wep.refill_in_progress = false
 	else
 		wep:BeginRefilling()
 	end

@@ -258,17 +258,17 @@ if SERVER then
 		if GetRoundState() == ROUND_POST then
 			return
 		end
-		
+
 		for ply_i in pairs(tbl) do
 			if ply == ply_i or not ply_i:Alive() or IsInSpecDM(ply_i) then
 				continue
 			end
-			
+
 			if ROLE_COPYCAT and (ply:HasWeapon("weapon_ttt2_copycat_files") and ply_i:HasWeapon("weapon_ttt2_copycat_files")) then
 				--A Copycat that has stolen the role of the Redacted may still see their teammates and vice versa.
 				continue
 			end
-			
+
 			if ply_i:GetSubRole() == ROLE_REDACTED then
 				--The teammates of the Redacted can't see that they are on their team.
 				--If they could, Traitors wouldn't hesitate to kill the Redacted, removing some of the social intrigue.
@@ -283,10 +283,10 @@ if SERVER then
 		if GetRoundState() == ROUND_POST then
 			return
 		end
-		
+
 		local ply_subrole_data = ply:GetSubRoleData()
 		local target_subrole_data = target:GetSubRoleData()
-		
+
 		if ROLE_COPYCAT and (ply:HasWeapon("weapon_ttt2_copycat_files") and target:HasWeapon("weapon_ttt2_copycat_files")) then
 			return
 		elseif target:GetSubRole() == ROLE_REDACTED and ply:GetTeam() == target:GetTeam() then
@@ -302,7 +302,7 @@ if SERVER then
 
 	local function ResetRedactedForServer()
 		REDACT_SETUP_COMPLETE = nil
-		
+
 		for _, ply in ipairs(player.GetAll()) do
 			ply:SetNWBool("TTT2IsRedacted", false)
 		end
@@ -376,23 +376,21 @@ if CLIENT then
 
 		hook.Add("HUDPaint", "HUDPaintRedactedDumb2D", function()
 			local client = LocalPlayer()
+			local alpha = 255
+			if client:GetSubRole() == ROLE_REDACTED then
+				alpha = 190
+			end
 
-			--TODO: Check all redacted entities, not players. May need to maintain a list in case the number of entities is too large? Not sure how much that would save on performance...
-			for _, ply in ipairs(player.GetAll()) do
-				if (ply:GetSubRole() == ROLE_REDACTED or ply:GetNWBool("TTT2IsRedacted")) and ply:SteamID64() ~= client:SteamID64() then
-					local alpha = 255
-					if client:GetSubRole() == ROLE_REDACTED then
-						alpha = 190
-					end
+			for _, ent in ipairs(ents.GetAll()) do
+				if ent:GetNWBool("TTT2IsRedacted") and (not ent:IsPlayer() or ent:SteamID64() ~= client:SteamID64()) then
 
 					--REDACT_DEBUG
 					--cam.Start3D()
-					--	print("REDACT_DEBUG HUDPaint: Calling DrawBlackBox for " .. ply:GetName())
-					--	render.DrawWireframeBox(ply:GetPos(), ply:GetAngles(), ply:OBBMins(), ply:OBBMaxs(), COLOR_RED)
+					--	render.DrawWireframeBox(ent:GetPos(), ent:GetAngles(), ent:OBBMins(), ent:OBBMaxs(), COLOR_RED)
 					--cam.End3D()
 					--REDACT_DEBUG
 
-					DrawBlackBoxAroundEntity(ply, alpha)
+					DrawBlackBoxAroundEntity(ent, alpha)
 				end
 			end
 		end)
