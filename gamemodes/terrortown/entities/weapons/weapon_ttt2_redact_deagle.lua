@@ -120,7 +120,7 @@ local function RedactDeagleCallback(attacker, tr, dmg)
 
 	local target = tr.Entity
 	if IsValid(target) then
-		target:SetNWBool("TTT2IsRedacted", true)
+		REDACT_DATA.RedactEntity(target)
 	end
 
 	local wep = attacker:GetWeapon("weapon_ttt2_redact_deagle")
