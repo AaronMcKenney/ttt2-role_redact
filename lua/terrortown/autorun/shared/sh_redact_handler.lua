@@ -27,14 +27,6 @@ function REDACT_DATA.UnredactEntity(ent)
 end
 
 function REDACT_DATA.RedactEntity(ent)
-	if ent:IsWeapon() then
-		--Reacting weapons will make it look like a black square/cube is jutting out of a redacted player.
-		--Seems to be difficult to unredact held weapons without dropping NWBool methodology.
-		--  ex. Difficult to handle if the weapon is owned but not in the player's inventory, if the weapon is owned but not currently held, etc.
-		--May attempt to fix this later.
-		return
-	end
-
 	ent:SetNWBool("TTT2IsRedacted", true)
 
 	if ent:IsPlayer() then
