@@ -17,23 +17,11 @@ local function IsInSpecDM(ply)
 end
 
 function REDACT_DATA.UnredactEntity(ent)
-	if ent:GetNWBool("TTT2IsRedacted") and ent:IsPlayer() then
-		for _, wep in ipairs(ent:GetWeapons()) do
-			wep:SetNoDraw(false)
-		end
-	end
-
 	ent:SetNWBool("TTT2IsRedacted", false)
 end
 
 function REDACT_DATA.RedactEntity(ent)
 	ent:SetNWBool("TTT2IsRedacted", true)
-
-	if ent:IsPlayer() then
-		for _, wep in ipairs(ent:GetWeapons()) do
-			wep:SetNoDraw(true)
-		end
-	end
 end
 
 function REDACT_DATA.ResetRedactData()
@@ -44,35 +32,11 @@ function REDACT_DATA.ResetRedactData()
 	REDACT_DATA.REDACTED_WORLD_POINTS = {}
 end
 
-hook.Add("PlayerSwitchWeapon", "PlayerSwitchWeaponRedacted", function(ply, old, new)
-	if ply:GetNWBool("TTT2IsRedacted") then
-		new:SetNoDraw(true)
-	end
-end)
-
 if CLIENT then
 	function REDACT_DATA.CanCensorRedactedEntity(ent)
-		--local client = LocalPlayer()
-		----Assumes the entity is valid and redacted
-		--local can_censor = true
-		--
-		--if ent:IsPlayer() then
-		--	--If the client is redacted, don't censor them, as that would ruin visibility
-		--	--Likewise, don't censor spectators
-		--	can_censor = can_censor and ent:SteamID64() ~= LocalPlayer():SteamID64() and ent:Alive() and not IsInSpecDM(ent)
-		--elseif ent:IsWeapon() then
-		--	--Shouldn't censor weapons if they are held by a redacted player, as players would see two redacted entities attached to each other.
-		--	can_censor = can_censor and (not IsValid(ent:GetOwner()) or not IsValid(ent:GetOwner():GetActiveWeapon()) or ent:GetOwner():GetActiveWeapon() ~= ent)
-		--end
-		--
-		--return can_censor
-
-		--return (IsValid(ent) and ent:GetNWBool("TTT2IsRedacted") and 
-		--	(not ent:IsPlayer() or (ent:SteamID64() ~= LocalPlayer():SteamID64() and ent:Alive() and not IsInSpecDM(ent))) and
-		--	(not ent:IsWeapon() or (not IsValid(ent:GetOwner()) or not IsValid(ent:GetOwner():GetActiveWeapon()) or ent:GetOwner():GetActiveWeapon() ~= ent)))
-
-		return (IsValid(ent) and ent:GetNWBool("TTT2IsRedacted") and 
-			(not ent:IsPlayer() or (ent:SteamID64() ~= LocalPlayer():SteamID64() and ent:Alive() and not IsInSpecDM(ent))))
+		return (IsValid(ent) and ent:GetNWBool("TTT2IsRedacted") and not ent:GetNoDraw() and
+			(not ent:IsPlayer() or (ent:SteamID64() ~= LocalPlayer():SteamID64() and ent:Alive() and not IsInSpecDM(ent))) and
+			(not ent:IsWeapon() or not IsValid(ent:GetOwner())))
 	end
 
 	if REDACT_DATA.MODE == REDACT_MODE.SIMPLE_3D then
@@ -89,6 +53,16 @@ if CLIENT then
 					if not GetConVar("ttt2_redact_error"):GetBool() then
 						render.SetColorMaterial()
 					end
+
+					--Oriented Bounding Boxes (OBB) is the current preference for 3D redaction. They are simple, actual boxes that are used for cheap physics
+
+					--Model bounds also sort of works, but the bounds are strangely rigid for players, and do not change if the player crouches for example.
+					--local mins, maxs = ent:GetModelBounds()
+
+					--Presumably, using hitboxes is the best solution in terms of quality (i.e. making sure the entire entity is covered),
+					--  but since entities are comprised of many hitboxes, this would necessitate a performance hit. The code would also be more complicated.
+					--  It may still be worth pursuing.
+
 					render.DrawBox(ent:GetPos(), ent:GetAngles(), ent:OBBMins(), ent:OBBMaxs(), color_redact)
 				end
 			end

@@ -256,7 +256,7 @@ if SERVER then
 		end
 	end)
 	
-	hook.Add("TTT2ModifyRadarRole", "TTT2ModifyRadarRoleCopycat", function(ply, target)
+	hook.Add("TTT2ModifyRadarRole", "TTT2ModifyRadarRoleRedacted", function(ply, target)
 		--This function uses the same general logic as TTT2SpecialRoleSyncing, for consistency
 		if GetRoundState() == ROUND_POST then
 			return
