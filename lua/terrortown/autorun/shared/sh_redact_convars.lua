@@ -10,6 +10,7 @@ CreateConVar("ttt2_redact_deagle_enable", "1", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_deagle_starting_ammo", "3", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_deagle_capacity", "9", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 CreateConVar("ttt2_redact_deagle_refill_time", "30", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
+CreateConVar("ttt2_redact_duration", "10", {FCVAR_ARCHIVE, FCVAR_NOTFIY})
 
 hook.Add("TTTUlxDynamicRCVars", "TTTUlxDynamicRedactedCVars", function(tbl)
 	tbl[ROLE_REDACTED] = tbl[ROLE_REDACTED] or {}
@@ -134,6 +135,17 @@ hook.Add("TTTUlxDynamicRCVars", "TTTUlxDynamicRedactedCVars", function(tbl)
 		decimal = 0,
 		desc = "ttt2_redact_deagle_refill_time (Def: 30)"
 	})
+
+	--# When a player is hit by the Redact Deagle, how many seconds are they REDACTED for (0 to prevent redaction)?
+	--  ttt2_redact_duration [0..n] (default: 10)
+	table.insert(tbl[ROLE_REDACTED], {
+		cvar = "ttt2_redact_duration",
+		slider = true,
+		min = 0,
+		max = 30,
+		decimal = 0,
+		desc = "ttt2_redact_duration (Def: 10)"
+	})
 end)
 
 hook.Add("TTT2SyncGlobals", "AddRedactedGlobals", function()
@@ -148,6 +160,7 @@ hook.Add("TTT2SyncGlobals", "AddRedactedGlobals", function()
 	SetGlobalInt("ttt2_redact_deagle_starting_ammo", GetConVar("ttt2_redact_deagle_starting_ammo"):GetInt())
 	SetGlobalInt("ttt2_redact_deagle_capacity", GetConVar("ttt2_redact_deagle_capacity"):GetInt())
 	SetGlobalInt("ttt2_redact_deagle_refill_time", GetConVar("ttt2_redact_deagle_refill_time"):GetInt())
+	SetGlobalInt("ttt2_redact_duration", GetConVar("ttt2_redact_duration"):GetInt())
 end)
 
 cvars.AddChangeCallback("ttt2_redact_weight_innocent", function(name, old, new)
@@ -182,4 +195,7 @@ cvars.AddChangeCallback("ttt2_redact_deagle_capacity", function(name, old, new)
 end)
 cvars.AddChangeCallback("ttt2_redact_deagle_refill_time", function(name, old, new)
 	SetGlobalInt("ttt2_redact_deagle_refill_time", tonumber(new))
+end)
+cvars.AddChangeCallback("ttt2_redact_duration", function(name, old, new)
+	SetGlobalInt("ttt2_redact_duration", tonumber(new))
 end)

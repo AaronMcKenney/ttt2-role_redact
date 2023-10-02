@@ -18,10 +18,29 @@ end
 
 function REDACT_DATA.UnredactEntity(ent)
 	ent:SetNWBool("TTT2IsRedacted", false)
+
+	if ent:IsPlayer() and timer.Exists("TTT2RedactPlayer_Server_" .. ent:SteamID64()) then
+		timer.Remove("TTT2RedactPlayer_Server_" .. ent:SteamID64())
+		STATUS:RemoveStatus(ent, "ttt2_redact_temporarily")
+	end
 end
 
 function REDACT_DATA.RedactEntity(ent)
+	local redact_duration = GetConVar("ttt2_redact_duration"):GetInt()
+	if ent:IsPlayer() and ent:GetSubRole() ~= ROLE_REDACTED and redact_duration <= 0 then
+		return
+	end
+
 	ent:SetNWBool("TTT2IsRedacted", true)
+
+	--Non-Redacted players are hit with a debuff upon redaction
+	if ent:IsPlayer() and ent:GetSubRole() ~= ROLE_REDACTED then
+		timer.Create("TTT2RedactPlayer_Server_" .. ent:SteamID64(), redact_duration, 1, function()
+			REDACT_DATA.UnredactEntity(ent)
+		end)
+
+		STATUS:AddTimedStatus(ent, "ttt2_redact_temporarily", redact_duration, true)
+	end
 end
 
 function REDACT_DATA.ResetRedactData()
@@ -33,6 +52,13 @@ function REDACT_DATA.ResetRedactData()
 end
 
 if CLIENT then
+	hook.Add("Initialize", "RegisteringStatusOnInitializeForRedacted", function()
+		STATUS:RegisterStatus("ttt2_redact_temporarily", {
+			hud = Material("vgui/ttt/redact_status.png"),
+			type = "bad"
+		})
+	end)
+
 	function REDACT_DATA.CanCensorRedactedEntity(ent)
 		return (IsValid(ent) and ent:GetNWBool("TTT2IsRedacted") and not ent:GetNoDraw() and
 			(not ent:IsPlayer() or (ent:SteamID64() ~= LocalPlayer():SteamID64() and ent:Alive() and not IsInSpecDM(ent))) and
