@@ -173,3 +173,11 @@ if CLIENT then
 		end)
 	end --DUMB_2D
 end
+
+hook.Add("TTTPlayerSpeedModifier", "TTTPlayerSpeedModifierRedacted", function(ply, _, _, no_lag)
+	if not IsValid(ply) or not ply:GetNWBool("TTT2IsRedacted") or ply:GetSubRole() == ROLE_REDACTED or not ply:Alive() or IsInSpecDM(ply) then
+		return
+	end
+
+	no_lag[1] = no_lag[1] * GetConVar("ttt2_redact_speed_multi"):GetFloat()
+end)

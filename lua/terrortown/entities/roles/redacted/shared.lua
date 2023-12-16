@@ -167,6 +167,29 @@ if SERVER then
 		end
 		
 		REDACT_SETUP_COMPLETE = true
+
+		--BMF
+		--timer.Simple(5, function()
+		--	for _, ply in ipairs(player.GetAll()) do
+		--		REDACT_DATA.RedactEntity(ply)
+		--	end
+		--end)
+		--timer.Simple(10, function()
+		--	for _, ply in ipairs(player.GetAll()) do
+		--		REDACT_DATA.RedactEntity(ply)
+		--	end
+		--end)
+		--timer.Simple(15, function()
+		--	for _, ply in ipairs(player.GetAll()) do
+		--		REDACT_DATA.RedactEntity(ply)
+		--	end
+		--end)
+		--timer.Simple(20, function()
+		--	for _, ply in ipairs(player.GetAll()) do
+		--		REDACT_DATA.RedactEntity(ply)
+		--	end
+		--end)
+		--BMF
 	end)
 
 	function ROLE:GiveRoleLoadout(ply, isRoleChange)
@@ -205,7 +228,7 @@ if SERVER then
 		--Any message the Redacted tries to send is redacted.
 		--Honestly not sure how to use LANG here, as LANG.TryTranslation is Client only. Hopefully noone needs this to be translated.
 		if not GetConVar("ttt2_redact_can_commune"):GetBool() and IsValid(ply) and ply:IsPlayer() and ply:GetSubRole() == ROLE_REDACTED and not ply:IsSpec() and not IsInSpecDM(ply) then
-			ply:ChatPrint(ply:GetName() .. ": [REDACTED]")
+			ply:ChatPrint(ply:GetName() .. ": [REDACTED]") --BMF TODO
 			return ""
 		end
 	end)
@@ -284,6 +307,117 @@ if SERVER then
 	end
 	hook.Add("TTTEndRound", "TTTEndRoundRedacted", ResetRedactedForServer)
 	hook.Add("TTTPrepareRound", "TTTPrepareRoundRedacted", ResetRedactedForServer)
+end
+
+if CLIENT then
+	-------------
+	-- CONVARS --
+	-------------
+	function ROLE:AddToSettingsMenu(parent)
+		local form = vgui.CreateTTT2Form(parent, "header_roles_additional")
+
+		form:MakeSlider({
+			serverConvar = "ttt2_redact_weight_innocent",
+			label = "label_redact_weight_innocent",
+			min = 0,
+			max = 100,
+			decimal = 0
+		})
+
+		form:MakeSlider({
+			serverConvar = "ttt2_redact_weight_traitor",
+			label = "label_redact_weight_traitor",
+			min = 0,
+			max = 100,
+			decimal = 0
+		})
+
+		form:MakeSlider({
+			serverConvar = "ttt2_redact_weight_redacted",
+			label = "label_redact_weight_redacted",
+			min = 0,
+			max = 100,
+			decimal = 0
+		})
+
+		form:MakeSlider({
+			serverConvar = "ttt2_redact_weight_other",
+			label = "label_redact_weight_other",
+			min = 0,
+			max = 100,
+			decimal = 0
+		})
+
+		form:MakeCheckBox({
+			serverConvar = "ttt2_redact_can_commune",
+			label = "label_redact_can_commune"
+		})
+
+		form:MakeComboBox({
+			serverConvar = "ttt2_redact_mode",
+			label = "label_redact_mode",
+			choices = {{
+				value = 0,
+				title = LANG.GetTranslation("label_redact_mode_0")
+			},{
+				value = 1,
+				title = LANG.GetTranslation("label_redact_mode_1")
+			},{
+				value = 2,
+				title = LANG.GetTranslation("label_redact_mode_2")
+			}}
+		})
+
+		form:MakeCheckBox({
+			serverConvar = "ttt2_redact_error",
+			label = "label_redact_error"
+		})
+
+		form:MakeCheckBox({
+			serverConvar = "ttt2_redact_deagle_enable",
+			label = "label_redact_deagle_enable"
+		})
+
+		form:MakeSlider({
+			serverConvar = "ttt2_redact_deagle_starting_ammo",
+			label = "label_redact_deagle_starting_ammo",
+			min = 0,
+			max = 12,
+			decimal = 0
+		})
+
+		form:MakeSlider({
+			serverConvar = "ttt2_redact_deagle_capacity",
+			label = "label_redact_deagle_capacity",
+			min = 1,
+			max = 12,
+			decimal = 0
+		})
+
+		form:MakeSlider({
+			serverConvar = "ttt2_redact_deagle_refill_time",
+			label = "label_redact_deagle_refill_time",
+			min = 0,
+			max = 120,
+			decimal = 0
+		})
+
+		form:MakeSlider({
+			serverConvar = "ttt2_redact_duration",
+			label = "label_redact_duration",
+			min = 0,
+			max = 30,
+			decimal = 0
+		})
+
+		form:MakeSlider({
+			serverConvar = "ttt2_redact_speed_multi",
+			label = "label_redact_speed_multi",
+			min = 0.1,
+			max = 1.0,
+			decimal = 0
+		})
+	end
 end
 
 --TODO:
